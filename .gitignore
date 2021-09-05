@@ -5,6 +5,8 @@
 *.exe
 *.o
 *.so
+*.a
+*.suprx
 test
 
 ## Logs and databases #
