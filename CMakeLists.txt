@@ -24,8 +24,8 @@ add_definitions(-D__psp2__)
 
 include_directories(
   include
-  nanovg/src
-  nanovg/example
+  libs/nanovg/src
+  libs/nanovg/example
 )
 
 link_directories(
@@ -34,8 +34,8 @@ link_directories(
 )
 
 add_executable(${PROJECT_NAME}
-  nanovg/src/nanovg.c
-  nanovg/example/demo.c
+  libs/nanovg/src/nanovg.c
+  libs/nanovg/example/demo.c
   source/main.cpp
 )
 
@@ -58,21 +58,21 @@ vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
   FILE data/libIMGEGL.suprx libIMGEGL.suprx
   FILE data/libGLESv2.suprx module/libGLESv2.suprx
   FILE data/libpvrPSP2_WSEGL.suprx module/libpvrPSP2_WSEGL.suprx
-  FILE nanovg/example/images/image1.jpg example/images/image1.jpg
-  FILE nanovg/example/images/image2.jpg example/images/image2.jpg
-  FILE nanovg/example/images/image3.jpg example/images/image3.jpg
-  FILE nanovg/example/images/image4.jpg example/images/image4.jpg
-  FILE nanovg/example/images/image5.jpg example/images/image5.jpg
-  FILE nanovg/example/images/image6.jpg example/images/image6.jpg
-  FILE nanovg/example/images/image7.jpg example/images/image7.jpg
-  FILE nanovg/example/images/image8.jpg example/images/image8.jpg
-  FILE nanovg/example/images/image9.jpg example/images/image9.jpg
-  FILE nanovg/example/images/image10.jpg example/images/image10.jpg
-  FILE nanovg/example/images/image11.jpg example/images/image11.jpg
-  FILE nanovg/example/images/image12.jpg example/images/image12.jpg
+  FILE libs/nanovg/example/images/image1.jpg example/images/image1.jpg
+  FILE libs/nanovg/example/images/image2.jpg example/images/image2.jpg
+  FILE libs/nanovg/example/images/image3.jpg example/images/image3.jpg
+  FILE libs/nanovg/example/images/image4.jpg example/images/image4.jpg
+  FILE libs/nanovg/example/images/image5.jpg example/images/image5.jpg
+  FILE libs/nanovg/example/images/image6.jpg example/images/image6.jpg
+  FILE libs/nanovg/example/images/image7.jpg example/images/image7.jpg
+  FILE libs/nanovg/example/images/image8.jpg example/images/image8.jpg
+  FILE libs/nanovg/example/images/image9.jpg example/images/image9.jpg
+  FILE libs/nanovg/example/images/image10.jpg example/images/image10.jpg
+  FILE libs/nanovg/example/images/image11.jpg example/images/image11.jpg
+  FILE libs/nanovg/example/images/image12.jpg example/images/image12.jpg
   
-  FILE nanovg/example/entypo.ttf example/entypo.ttf
-  FILE nanovg/example/Roboto-Regular.ttf example/Roboto-Regular.ttf
-  FILE nanovg/example/Roboto-Bold.ttf example/Roboto-Bold.ttf
-  FILE nanovg/example/NotoEmoji-Regular.ttf example/NotoEmoji-Regular.ttf
+  FILE libs/nanovg/example/entypo.ttf example/entypo.ttf
+  FILE libs/nanovg/example/Roboto-Regular.ttf example/Roboto-Regular.ttf
+  FILE libs/nanovg/example/Roboto-Bold.ttf example/Roboto-Bold.ttf
+  FILE libs/nanovg/example/NotoEmoji-Regular.ttf example/NotoEmoji-Regular.ttf
 )
