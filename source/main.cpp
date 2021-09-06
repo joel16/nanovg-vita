@@ -16,9 +16,10 @@ unsigned int sceLibcHeapSize = 64 * 1024 * 1024;
 #include "demo.h"
 }
 
-static EGLDisplay s_display;
-static EGLContext s_context;
-static EGLSurface s_surface;
+// Global vars
+static EGLDisplay s_display = EGL_NO_DISPLAY;
+static EGLContext s_context = EGL_NO_CONTEXT;
+static EGLSurface s_surface = EGL_NO_SURFACE;
 
 // Based on init/deinit egl functions with minor changes from https://github.com/Adubbz/nanovg-deko3d-example/blob/master/source/test_gl.cpp
 namespace EGL {
@@ -133,7 +134,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
 
     NVGcontext *vg = nullptr;
-    vg = nvgCreateGLES2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
+    vg = nvgCreateGLES2(NVG_STENCIL_STROKES);
 
     if (vg == nullptr) {
         sceClibPrintf("Could not init nanovg.\n");
