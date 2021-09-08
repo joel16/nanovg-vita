@@ -116,8 +116,6 @@ _fail0:
 }
 
 int main(int argc, char *argv[]) {
-    const SceSize max_dst_size = 64;
-
     // Load modules required for libGLESv2 and PVRSRV
     sceKernelLoadStartModule("vs0:sys/external/libfios2.suprx", 0, nullptr, 0, nullptr, nullptr);
     sceKernelLoadStartModule("vs0:sys/external/libc.suprx", 0, nullptr, 0, nullptr, nullptr);
@@ -126,8 +124,6 @@ int main(int argc, char *argv[]) {
     
     PVRSRV_PSP2_APPHINT hint;
     PVRSRVInitializeAppHint(&hint);
-    sceClibSnprintf(hint.szGLES2, max_dst_size, "app0:module/libGLESv2.suprx");
-    sceClibSnprintf(hint.szWindowSystem, max_dst_size, "app0:module/libpvrPSP2_WSEGL.suprx");
     PVRSRVCreateVirtualAppHint(&hint);
 
     if (!EGL::Init())

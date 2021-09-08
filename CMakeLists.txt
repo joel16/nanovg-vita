@@ -70,7 +70,6 @@ vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
   FILE libs/nanovg/example/images/image10.jpg example/images/image10.jpg
   FILE libs/nanovg/example/images/image11.jpg example/images/image11.jpg
   FILE libs/nanovg/example/images/image12.jpg example/images/image12.jpg
-  
   FILE libs/nanovg/example/entypo.ttf example/entypo.ttf
   FILE libs/nanovg/example/Roboto-Regular.ttf example/Roboto-Regular.ttf
   FILE libs/nanovg/example/Roboto-Bold.ttf example/Roboto-Bold.ttf
