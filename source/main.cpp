@@ -3,27 +3,46 @@ extern "C" {
 #include <psp2/kernel/clib.h>
 #include <psp2/kernel/modulemgr.h>
 #include <psp2/kernel/processmgr.h>
+#define GL_GLEXT_PROTOTYPES
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <gpu_es4/psp2_pvr_hint.h>
 
 unsigned int sceLibcHeapSize = 64 * 1024 * 1024;
 
 #include "nanovg.h"
-#define NANOVG_GLES2_IMPLEMENTATION	// Use GL2 implementation.
+#define NANOVG_GLES2_IMPLEMENTATION	// Use GLES2 implementation.
 #include "nanovg_gl.h"
 
 #include "demo.h"
 }
 
 // Global vars
-static EGLDisplay s_display = EGL_NO_DISPLAY;
-static EGLContext s_context = EGL_NO_CONTEXT;
-static EGLSurface s_surface = EGL_NO_SURFACE;
+static EGLint screen_width = 0, screen_height = 0;
 
 // Based on init/deinit egl functions with minor changes from https://github.com/Adubbz/nanovg-deko3d-example/blob/master/source/test_gl.cpp
 namespace EGL {
+    static EGLDisplay s_display = EGL_NO_DISPLAY;
+    static EGLContext s_context = EGL_NO_CONTEXT;
+    static EGLSurface s_surface = EGL_NO_SURFACE;
+
     static bool Init(void) {
+        EGLConfig config;
+        EGLint numConfigs;
+        
+        static const EGLint framebufferAttributeList[] = {
+            EGL_RED_SIZE,        8,
+            EGL_GREEN_SIZE,      8,
+            EGL_BLUE_SIZE,       8,
+            EGL_ALPHA_SIZE,      8,
+            EGL_STENCIL_SIZE,    8,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+            EGL_NONE
+        };
+
+        static const EGLint contextAttributeList[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+
         // Connect to the EGL default display
         s_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
         if (!s_display) {
@@ -40,43 +59,22 @@ namespace EGL {
             goto _fail1;
         }
         
-        // Get an appropriate EGL framebuffer configuration
-        EGLConfig configs[2];
-        EGLint numConfigs;
-        
-        static const EGLint framebufferAttributeList[] = {
-            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-            EGL_RED_SIZE,     8,
-            EGL_GREEN_SIZE,   8,
-            EGL_BLUE_SIZE,    8,
-            EGL_ALPHA_SIZE,   8,
-            EGL_DEPTH_SIZE,   24,
-            EGL_STENCIL_SIZE, 8,
-            EGL_NONE
-        };
-        
-        if (eglGetConfigs(s_display, configs, 2, &numConfigs) == EGL_FALSE) {
-            sceClibPrintf("Could not get configs! error: %d", eglGetError());
-            goto _fail1;
-        }
-        
-        eglChooseConfig(s_display, framebufferAttributeList, configs, 1, &numConfigs);
+        // Get an appropriate EGL framebuffer configuration    
+        eglChooseConfig(s_display, framebufferAttributeList, &config, 1, &numConfigs);
         if (numConfigs == 0) {
             sceClibPrintf("No config found! error: %d", eglGetError());
             goto _fail1;
         }
         
         // Create an EGL window surface
-        s_surface = eglCreateWindowSurface(s_display, configs[0], (EGLNativeWindowType)0, nullptr);
+        s_surface = eglCreateWindowSurface(s_display, config, (EGLNativeWindowType)0, nullptr);
         if (!s_surface) {
             sceClibPrintf("Surface creation failed! error: %d", eglGetError());
             goto _fail1;
         }
         
         // Create an EGL rendering context
-        static const EGLint contextAttributeList[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
-        
-        s_context = eglCreateContext(s_display, configs[0], EGL_NO_CONTEXT, contextAttributeList);
+        s_context = eglCreateContext(s_display, config, EGL_NO_CONTEXT, contextAttributeList);
         if (!s_context) {
             sceClibPrintf("Context creation failed! error: %d", eglGetError());
             goto _fail2;
@@ -84,6 +82,9 @@ namespace EGL {
         
         // Connect the context to the surface
         eglMakeCurrent(s_display, s_surface, s_surface, s_context);
+        eglQuerySurface(s_display, s_surface, EGL_WIDTH, &screen_width);
+        eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &screen_height);
+        eglSwapInterval(s_display, 0);
         return true;
         
 _fail2:
@@ -113,6 +114,10 @@ _fail0:
             s_display = nullptr;
         }
     }
+
+    static EGLBoolean SwapBuffers(void) {
+        return eglSwapBuffers(s_display, s_surface);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -130,7 +135,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
 
     NVGcontext *vg = nullptr;
-    vg = nvgCreateGLES2(NVG_STENCIL_STROKES);
+    vg = nvgCreateGLES2(NVG_DEBUG);
 
     if (vg == nullptr) {
         sceClibPrintf("Could not init nanovg.\n");
@@ -143,7 +148,7 @@ int main(int argc, char *argv[]) {
 
     bool done = false;
     int blowup = 0, screenshot = 0, premult = 0;
-    int winWidth = 960, winHeight = 544, fbWidth = 960, fbHeight = 544;
+    int winWidth = screen_width, winHeight = screen_height, fbWidth = screen_width, fbHeight = screen_height;
     unsigned int pressed = 0;
     SceCtrlData pad = {}, old_pad = {};
     double prevt = sceKernelGetProcessTimeWide();
@@ -163,7 +168,7 @@ int main(int argc, char *argv[]) {
         else
             glClearColor(0.3f, 0.3f, 0.32f, 1.0f);
             
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -180,7 +185,7 @@ int main(int argc, char *argv[]) {
         }
         
         glEnable(GL_DEPTH_TEST);
-        eglSwapBuffers(s_display, s_surface);
+        EGL::SwapBuffers();
         
         // Handle input
         sceClibMemset(&pad, 0, sizeof(SceCtrlData));
