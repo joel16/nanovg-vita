@@ -3,6 +3,10 @@ NanoVG-vita
 
 NanoVG is small antialiased vector graphics rendering library for OpenGL. It has lean API modeled after HTML5 canvas API. It is aimed to be a practical and fun toolset for building scalable user interfaces and visualizations.
 
+<p align="center">
+<img src="https://i.imgur.com/ItWDrqt.png" alt="nanovg-vita screenshot" width="640" height="362"/>
+</p>
+
 ## Building
 This project is dependent on PVR_PSP2. The required modules (libgpu_es4_ext.suprx, libIMGEGL.suprx, libGLESv2.suprx and libpvrPSP2_WSEGL.suprx) will need to be inside of a folder named "data" that lies in same directory as the CMakeLists.txt. You will also need the following stubs libgpu_es4_ext_stub_weak, libGLESv2_stub_weak and libIMGEGL_stub_weak in your build env or inside the libs directory. Then build using the following command:
 ```

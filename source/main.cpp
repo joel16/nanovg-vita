@@ -3,10 +3,12 @@ extern "C" {
 #include <psp2/kernel/clib.h>
 #include <psp2/kernel/modulemgr.h>
 #include <psp2/kernel/processmgr.h>
+#include <psp2/kernel/sysmem.h>
 #define GL_GLEXT_PROTOTYPES
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <gpu_es4/psp2_pvr_hint.h>
 
 unsigned int sceLibcHeapSize = 64 * 1024 * 1024;
@@ -16,6 +18,11 @@ unsigned int sceLibcHeapSize = 64 * 1024 * 1024;
 #include "nanovg_gl.h"
 
 #include "demo.h"
+
+#define SCE_KERNEL_CPU_MASK_SHIFT		(16)
+#define SCE_KERNEL_CPU_MASK_USER_0		(0x01 << SCE_KERNEL_CPU_MASK_SHIFT)
+#define SCE_KERNEL_CPU_MASK_USER_1		(0x02 << SCE_KERNEL_CPU_MASK_SHIFT)
+#define SCE_KERNEL_CPU_MASK_USER_2		(0x04 << SCE_KERNEL_CPU_MASK_SHIFT)
 }
 
 // Global vars
@@ -28,15 +35,19 @@ namespace EGL {
     static EGLSurface s_surface = EGL_NO_SURFACE;
 
     static bool Init(void) {
-        EGLConfig config;
-        EGLint numConfigs;
+        EGLConfig configs[2];
+        EGLint numConfigs = 0;
+        EGLint major = 0, minor = 0;
         
-        static const EGLint framebufferAttributeList[] = {
+        static const EGLint framebufferAttributeList[] =  {
+            EGL_BUFFER_SIZE,     EGL_DONT_CARE,
             EGL_RED_SIZE,        8,
             EGL_GREEN_SIZE,      8,
             EGL_BLUE_SIZE,       8,
             EGL_ALPHA_SIZE,      8,
             EGL_STENCIL_SIZE,    8,
+            EGL_DEPTH_SIZE,      16,
+            EGL_SAMPLES,         4,
             EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
             EGL_NONE
         };
@@ -51,30 +62,45 @@ namespace EGL {
         }
         
         // Initialize the EGL display connection
-        eglInitialize(s_display, nullptr, nullptr);
+        eglInitialize(s_display, &major, &minor);
         
         // Select OpenGL (Core) as the desired graphics API
         if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
             sceClibPrintf("Could not set API! error: %d", eglGetError());
             goto _fail1;
         }
+
+        if (eglGetConfigs(s_display, configs, 2, &numConfigs) == EGL_FALSE) {
+            sceClibPrintf("Cound not get configs! error: %d", eglGetError());
+            goto _fail1;
+        }
         
         // Get an appropriate EGL framebuffer configuration    
-        eglChooseConfig(s_display, framebufferAttributeList, &config, 1, &numConfigs);
+        eglChooseConfig(s_display, framebufferAttributeList, configs, 2, &numConfigs);
         if (numConfigs == 0) {
             sceClibPrintf("No config found! error: %d", eglGetError());
             goto _fail1;
         }
+
+        Psp2NativeWindow win;
+        win.type = PSP2_DRAWABLE_TYPE_WINDOW;
+        win.windowSize = PSP2_WINDOW_960X544;
+        
+        if (sceKernelGetModel() == SCE_KERNEL_MODEL_VITATV)
+            win.windowSize = PSP2_WINDOW_1920X1088;
+        
+        win.numFlipBuffers = 2;
+        win.flipChainThrdAffinity = SCE_KERNEL_CPU_MASK_USER_1;
         
         // Create an EGL window surface
-        s_surface = eglCreateWindowSurface(s_display, config, (EGLNativeWindowType)0, nullptr);
+        s_surface = eglCreateWindowSurface(s_display, configs[0], &win, nullptr);
         if (!s_surface) {
             sceClibPrintf("Surface creation failed! error: %d", eglGetError());
             goto _fail1;
         }
         
         // Create an EGL rendering context
-        s_context = eglCreateContext(s_display, config, EGL_NO_CONTEXT, contextAttributeList);
+        s_context = eglCreateContext(s_display, configs[0], EGL_NO_CONTEXT, contextAttributeList);
         if (!s_context) {
             sceClibPrintf("Context creation failed! error: %d", eglGetError());
             goto _fail2;

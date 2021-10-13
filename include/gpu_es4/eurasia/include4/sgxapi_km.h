@@ -71,11 +71,29 @@ extern "C" {
 #define SGX_CGBUFFER_HEAP_ID					13
 #endif
 #endif
+
+#if !defined(__psp2__)
 #if defined(SUPPORT_MEMORY_TILING)
 #define SGX_VPB_TILED_HEAP_ID			14
 #endif
 
 #define SGX_MAX_HEAP_ID							15
+#else
+#define SGX_USER_CPU_VA_HEAP_ID					14
+#define SGX_USER_CDRAM_VA_HEAP_ID				15
+
+/* CDRAM 3DParameter Heaps */
+#define SGX_PERCONTEXT_CDRAM_3DPB_HEAP_ID		16
+#define SGX_SHARED_CDRAM_3DPB_HEAP_ID			17
+
+#define SGX_CD_PIXELSHADER_HEAP_ID				18
+#define SGX_CD_VERTEXSHADER_HEAP_ID				19
+
+#define SGX_USER_CPU_NC_VA_HEAP_ID				20
+#define SGX_PERFMON_VA_HEAP_ID					21
+
+#define SGX_MAX_HEAP_ID							22
+#endif /* __psp2__ */
 
 /*
  * Keep SGX_3DPARAMETERS_HEAP_ID as TQ full custom
@@ -239,6 +257,9 @@ typedef enum _SGX_MISC_INFO_REQUEST_
 	SGX_MISC_INFO_REQUEST_SPM,
 	SGX_MISC_INFO_REQUEST_ACTIVEPOWER,
 	SGX_MISC_INFO_REQUEST_LOCKUPS,
+#if defined(__psp2__)
+	SGX_MISC_INFO_REQUEST_TIMERS,
+#endif
 	SGX_MISC_INFO_REQUEST_FORCE_I16 				=  0x7fff
 } SGX_MISC_INFO_REQUEST;
 
@@ -352,6 +373,21 @@ typedef struct _PVRSRV_SGX_MISCINFO_SET_HWPERF_STATUS
 } PVRSRV_SGX_MISCINFO_SET_HWPERF_STATUS;
 
 
+#if defined(__psp2__)
+/*!
+ ******************************************************************************
+ * Structure for getting the CPU and GPU timers
+ *****************************************************************************/
+typedef struct _PVRSRV_SGX_MISCINFO_TIMERS_
+{
+	/* Based on process time */
+	IMG_UINT64	ui64CPUTimer;
+	/* See EUR_CR_TIMER */
+	IMG_UINT32	ui32GPUTimer;
+} PVRSRV_SGX_MISCINFO_TIMERS;
+#endif
+
+
 /*!
  ******************************************************************************
  * Structure for misc SGX commands in services
@@ -377,6 +413,9 @@ typedef struct _SGX_MISC_INFO_
 		SGX_BREAKPOINT_INFO									sSGXBreakpointInfo;
 #endif
 		PVRSRV_SGX_MISCINFO_SET_HWPERF_STATUS				sSetHWPerfStatus;
+#if defined(__psp2__)
+		PVRSRV_SGX_MISCINFO_TIMERS							sTimers;
+#endif
 	} uData;
 } SGX_MISC_INFO;
 
