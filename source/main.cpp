@@ -26,14 +26,17 @@ unsigned int sceLibcHeapSize = 64 * 1024 * 1024;
 }
 
 // Global vars
-static EGLint screen_width = 0, screen_height = 0;
+static EGLDisplay m_display = EGL_NO_DISPLAY;
+static EGLContext m_context = EGL_NO_CONTEXT;
+static EGLSurface m_surface = EGL_NO_SURFACE;
+
+namespace {
+    static constexpr SceUInt32 FramebufferWidth = 960;
+    static constexpr SceUInt32 FramebufferHeight = 544;
+}
 
 // Based on init/deinit egl functions with minor changes from https://github.com/Adubbz/nanovg-deko3d-example/blob/master/source/test_gl.cpp
 namespace EGL {
-    static EGLDisplay s_display = EGL_NO_DISPLAY;
-    static EGLContext s_context = EGL_NO_CONTEXT;
-    static EGLSurface s_surface = EGL_NO_SURFACE;
-
     static bool Init(void) {
         EGLConfig configs[2];
         EGLint numConfigs = 0;
@@ -51,98 +54,96 @@ namespace EGL {
             EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
             EGL_NONE
         };
-
+        
         static const EGLint contextAttributeList[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
-
+        
         // Connect to the EGL default display
-        s_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        if (!s_display) {
+        m_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        if (!m_display) {
             sceClibPrintf("Could not connect to display! error: %d", eglGetError());
-            goto _fail0;
+            return false;
         }
         
         // Initialize the EGL display connection
-        eglInitialize(s_display, &major, &minor);
+        eglInitialize(m_display, &major, &minor);
         
         // Select OpenGL (Core) as the desired graphics API
         if (eglBindAPI(EGL_OPENGL_ES_API) == EGL_FALSE) {
             sceClibPrintf("Could not set API! error: %d", eglGetError());
-            goto _fail1;
+            eglTerminate(m_display);
+            m_display = nullptr;
+            return false;
         }
-
-        if (eglGetConfigs(s_display, configs, 2, &numConfigs) == EGL_FALSE) {
+        
+        if (eglGetConfigs(m_display, configs, 2, &numConfigs) == EGL_FALSE) {
             sceClibPrintf("Cound not get configs! error: %d", eglGetError());
-            goto _fail1;
+            eglTerminate(m_display);
+            m_display = nullptr;
+            return false;
         }
         
         // Get an appropriate EGL framebuffer configuration    
-        eglChooseConfig(s_display, framebufferAttributeList, configs, 2, &numConfigs);
+        eglChooseConfig(m_display, framebufferAttributeList, configs, 2, &numConfigs);
         if (numConfigs == 0) {
             sceClibPrintf("No config found! error: %d", eglGetError());
-            goto _fail1;
+            eglTerminate(m_display);
+            m_display = nullptr;
+            return false;
         }
-
+        
         Psp2NativeWindow win;
         win.type = PSP2_DRAWABLE_TYPE_WINDOW;
         win.windowSize = PSP2_WINDOW_960X544;
         
         if (sceKernelGetModel() == SCE_KERNEL_MODEL_VITATV)
             win.windowSize = PSP2_WINDOW_1920X1088;
-        
+            
         win.numFlipBuffers = 2;
         win.flipChainThrdAffinity = SCE_KERNEL_CPU_MASK_USER_1;
         
         // Create an EGL window surface
-        s_surface = eglCreateWindowSurface(s_display, configs[0], &win, nullptr);
-        if (!s_surface) {
+        m_surface = eglCreateWindowSurface(m_display, configs[0], &win, nullptr);
+        if (!m_surface) {
             sceClibPrintf("Surface creation failed! error: %d", eglGetError());
-            goto _fail1;
+            eglTerminate(m_display);
+            m_display = nullptr;
+            return false;
         }
         
         // Create an EGL rendering context
-        s_context = eglCreateContext(s_display, configs[0], EGL_NO_CONTEXT, contextAttributeList);
-        if (!s_context) {
+        m_context = eglCreateContext(m_display, configs[0], EGL_NO_CONTEXT, contextAttributeList);
+        if (!m_context) {
             sceClibPrintf("Context creation failed! error: %d", eglGetError());
-            goto _fail2;
+            eglDestroySurface(m_display, m_surface);
+            m_surface = nullptr;
+            eglTerminate(m_display);
+            m_display = nullptr;
+            return false;
         }
         
         // Connect the context to the surface
-        eglMakeCurrent(s_display, s_surface, s_surface, s_context);
-        eglQuerySurface(s_display, s_surface, EGL_WIDTH, &screen_width);
-        eglQuerySurface(s_display, s_surface, EGL_HEIGHT, &screen_height);
-        eglSwapInterval(s_display, 0);
+        eglMakeCurrent(m_display, m_surface, m_surface, m_context);
+        eglSwapInterval(m_display, 1);
         return true;
-        
-_fail2:
-        eglDestroySurface(s_display, s_surface);
-        s_surface = nullptr;
-_fail1:
-        eglTerminate(s_display);
-        s_display = nullptr;
-_fail0:
-        return false;
     }
 
     static void Exit(void) {
-        if (s_display) {
-            eglMakeCurrent(s_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
-            if (s_context) {
-                eglDestroyContext(s_display, s_context);
-                s_context = nullptr;
-            }
-            if (s_surface) {
-                eglDestroySurface(s_display, s_surface);
-                s_surface = nullptr;
+        if (m_display) {
+            eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+            
+            if (m_context) {
+                eglDestroyContext(m_display, m_context);
+                m_context = nullptr;
             }
             
-            eglTerminate(s_display);
-            s_display = nullptr;
+            if (m_surface) {
+                eglDestroySurface(m_display, m_surface);
+                m_surface = nullptr;
+            }
+            
+            eglTerminate(m_display);
+            m_display = nullptr;
         }
-    }
-
-    static EGLBoolean SwapBuffers(void) {
-        return eglSwapBuffers(s_display, s_surface);
     }
 }
 
@@ -174,7 +175,7 @@ int main(int argc, char *argv[]) {
 
     bool done = false;
     int blowup = 0, screenshot = 0, premult = 0;
-    int winWidth = screen_width, winHeight = screen_height, fbWidth = screen_width, fbHeight = screen_height;
+    int winWidth = FramebufferWidth, winHeight = FramebufferHeight, fbWidth = FramebufferWidth, fbHeight = FramebufferHeight;
     unsigned int pressed = 0;
     SceCtrlData pad = {}, old_pad = {};
     double prevt = sceKernelGetProcessTimeWide();
@@ -211,7 +212,7 @@ int main(int argc, char *argv[]) {
         }
         
         glEnable(GL_DEPTH_TEST);
-        EGL::SwapBuffers();
+        eglSwapBuffers(m_display, m_surface);
         
         // Handle input
         sceClibMemset(&pad, 0, sizeof(SceCtrlData));
